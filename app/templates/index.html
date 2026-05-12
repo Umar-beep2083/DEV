@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flask DevOps App</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3e;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --pending: #f59e0b;
+      --in-progress: #3b82f6;
+      --completed: #10b981;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 860px; margin: 0 auto; }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
+    header h1 span { color: var(--accent); }
+
+    .health-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      transition: all 0.3s;
+    }
+    .health-badge.ok { color: var(--completed); border-color: var(--completed); }
+    .health-badge.error { color: var(--danger); border-color: var(--danger); }
+    .health-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Create form ─────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 { font-size: 0.9rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1rem; }
+
+    .form-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; gap: 0.35rem; flex: 1; min-width: 160px; }
+    .form-group label { font-size: 0.75rem; color: var(--muted); font-weight: 500; }
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.875rem;
+      padding: 0.55rem 0.75rem;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+      resize: none;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus { border-color: var(--accent); }
+    .form-group textarea { height: 72px; }
+
+    .btn {
+      padding: 0.55rem 1.25rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      font-family: inherit;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); padding: 0.35rem 0.65rem; font-size: 0.75rem; }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+
+    .form-actions { display: flex; align-items: flex-end; }
+
+    /* ── Task list ───────────────────────────────────────── */
+    .tasks-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .tasks-header h2 { font-size: 0.9rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .task-count {
+      font-size: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.2rem 0.6rem;
+      color: var(--muted);
+    }
+
+    #task-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .task-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      animation: slideIn 0.2s ease;
+    }
+    @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
+
+    .task-info { flex: 1; min-width: 0; }
+    .task-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .task-desc { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.6rem; }
+    .task-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .task-id { font-size: 0.7rem; color: var(--muted); font-family: monospace; }
+
+    .status-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status-badge.pending     { background: rgba(245,158,11,.15); color: var(--pending); }
+    .status-badge.in_progress { background: rgba(59,130,246,.15); color: var(--in-progress); }
+    .status-badge.completed   { background: rgba(16,185,129,.15); color: var(--completed); }
+
+    .task-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; flex-shrink: 0; }
+    .task-actions select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.75rem;
+      padding: 0.3rem 0.5rem;
+      cursor: pointer;
+      outline: none;
+      font-family: inherit;
+    }
+    .task-actions select:focus { border-color: var(--accent); }
+
+    /* ── Empty / loading states ──────────────────────────── */
+    .empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1.1rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.25s;
+      z-index: 99;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: none; }
+    .toast.success { border-color: var(--completed); color: var(--completed); }
+    .toast.error   { border-color: var(--danger);    color: var(--danger); }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <h1>Flask <span>DevOps</span> App</h1>
+    <div class="health-badge" id="health-badge">
+      <span class="health-dot"></span>
+      <span id="health-text">Checking...</span>
+    </div>
+  </header>
+
+  <!-- Create Task -->
+  <div class="card">
+    <h2>New Task</h2>
+    <div class="form-row">
+      <div class="form-group" style="flex:2;min-width:200px">
+        <label for="inp-title">Title *</label>
+        <input id="inp-title" type="text" placeholder="What needs to be done?" />
+      </div>
+      <div class="form-group" style="flex:3;min-width:200px">
+        <label for="inp-desc">Description</label>
+        <textarea id="inp-desc" placeholder="Optional details..."></textarea>
+      </div>
+      <div class="form-group" style="flex:1;min-width:130px">
+        <label for="inp-status">Status</label>
+        <select id="inp-status">
+          <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="createTask()">Add Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task List -->
+  <div class="tasks-header">
+    <h2>Tasks</h2>
+    <span class="task-count" id="task-count">0 tasks</span>
+  </div>
+  <div id="task-list">
+    <div class="empty">Loading tasks...</div>
+  </div>
+
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = '';  // same origin
+
+  // ── Health check ──────────────────────────────────────────────────────────
+  async function checkHealth() {
+    const badge = document.getElementById('health-badge');
+    const text  = document.getElementById('health-text');
+    try {
+      const r = await fetch(`${API}/health`);
+      const d = await r.json();
+      const dbOk = d.database === 'connected';
+      badge.className = 'health-badge ' + (dbOk ? 'ok' : 'error');
+      text.textContent = dbOk ? 'Healthy · DB connected' : `DB: ${d.database}`;
+    } catch {
+      badge.className = 'health-badge error';
+      text.textContent = 'Unreachable';
+    }
+  }
+
+  // ── Load tasks ────────────────────────────────────────────────────────────
+  async function loadTasks() {
+    const list = document.getElementById('task-list');
+    try {
+      const r = await fetch(`${API}/tasks`);
+      const tasks = await r.json();
+      document.getElementById('task-count').textContent =
+        tasks.length === 1 ? '1 task' : `${tasks.length} tasks`;
+      if (!tasks.length) {
+        list.innerHTML = '<div class="empty">No tasks yet — create one above.</div>';
+        return;
+      }
+      list.innerHTML = tasks.map(taskHTML).join('');
+    } catch {
+      list.innerHTML = '<div class="empty">Could not load tasks. Is the server running?</div>';
+    }
+  }
+
+  // ── Task card HTML ────────────────────────────────────────────────────────
+  function taskHTML(t) {
+    const label = { pending: 'Pending', in_progress: 'In Progress', completed: 'Completed' };
+    const desc  = t.description
+      ? `<div class="task-desc">${esc(t.description)}</div>`
+      : '';
+    return `
+      <div class="task-card" id="task-${t.id}">
+        <div class="task-info">
+          <div class="task-title">${esc(t.title)}</div>
+          ${desc}
+          <div class="task-meta">
+            <span class="status-badge ${t.status}">${label[t.status] || t.status}</span>
+            <span class="task-id">#${t.id}</span>
+          </div>
+        </div>
+        <div class="task-actions">
+          <select onchange="updateStatus(${t.id}, this.value)" title="Change status">
+            <option value="pending"     ${t.status==='pending'     ? 'selected':''}>Pending</option>
+            <option value="in_progress" ${t.status==='in_progress' ? 'selected':''}>In Progress</option>
+            <option value="completed"   ${t.status==='completed'   ? 'selected':''}>Completed</option>
+          </select>
+          <button class="btn btn-danger" onclick="deleteTask(${t.id})">Delete</button>
+        </div>
+      </div>`;
+  }
+
+  // ── Create task ───────────────────────────────────────────────────────────
+  async function createTask() {
+    const title = document.getElementById('inp-title').value.trim();
+    if (!title) { toast('Title is required', 'error'); return; }
+    const body = {
+      title,
+      description: document.getElementById('inp-desc').value.trim() || undefined,
+      status: document.getElementById('inp-status').value,
+    };
+    try {
+      const r = await fetch(`${API}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) { const e = await r.json(); toast(e.error || 'Create failed', 'error'); return; }
+      document.getElementById('inp-title').value   = '';
+      document.getElementById('inp-desc').value    = '';
+      document.getElementById('inp-status').value  = 'pending';
+      toast('Task created', 'success');
+      loadTasks();
+    } catch { toast('Server error', 'error'); }
+  }
+
+  // ── Update status ─────────────────────────────────────────────────────────
+  async function updateStatus(id, status) {
+    try {
+      const r = await fetch(`${API}/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!r.ok) { const e = await r.json(); toast(e.error || 'Update failed', 'error'); return; }
+      toast('Status updated', 'success');
+      loadTasks();
+    } catch { toast('Server error', 'error'); }
+  }
+
+  // ── Delete task ───────────────────────────────────────────────────────────
+  async function deleteTask(id) {
+    if (!confirm(`Delete task #${id}?`)) return;
+    try {
+      const r = await fetch(`${API}/tasks/${id}`, { method: 'DELETE' });
+      if (!r.ok) { const e = await r.json(); toast(e.error || 'Delete failed', 'error'); return; }
+      toast('Task deleted', 'success');
+      loadTasks();
+    } catch { toast('Server error', 'error'); }
+  }
+
+  // ── Allow Enter key to submit ─────────────────────────────────────────────
+  document.getElementById('inp-title').addEventListener('keydown', e => {
+    if (e.key === 'Enter') createTask();
+  });
+
+  // ── Toast helper ──────────────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.className = 'toast', 2500);
+  }
+
+  // ── Escape HTML ───────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  checkHealth();
+  loadTasks();
+</script>
+</body>
+</html>

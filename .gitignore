@@ -17,5 +17,6 @@ build/
 .coverage
 htmlcov/
 Thumbs.db
+*.pem
 docker-compose.override.yml
 docs/superpowers/

@@ -1,8 +1,13 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template
 from extensions import db
 from models import Task, TaskStatus
 
 tasks_bp = Blueprint('tasks', __name__)
+
+
+@tasks_bp.route('/ui')
+def ui():
+    return render_template('index.html')
 
 
 @tasks_bp.route('/')
