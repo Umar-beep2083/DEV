@@ -24,11 +24,34 @@ docker tag "$ECR_REPOSITORY:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TA
 echo "Pushing to ECR..."
 docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-echo "Deploying to ECS..."
+echo "Updating ECS task definition with new image..."
+TASK_DEF_JSON=$(aws ecs describe-task-definition \
+  --task-definition flask-devops-task \
+  --query 'taskDefinition' \
+  --region "$AWS_REGION")
+
+NEW_TASK_DEF=$(echo "$TASK_DEF_JSON" | python3 -c "
+import json, sys
+td = json.load(sys.stdin)
+td['containerDefinitions'][0]['image'] = '$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG'
+for key in ['taskDefinitionArn','revision','status','requiresAttributes',
+            'placementConstraints','compatibilities','registeredAt','registeredBy']:
+    td.pop(key, None)
+print(json.dumps(td))
+")
+
+echo "Registering new task definition revision..."
+NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+  --cli-input-json "$NEW_TASK_DEF" \
+  --region "$AWS_REGION" \
+  --query 'taskDefinition.taskDefinitionArn' \
+  --output text)
+
+echo "Deploying to ECS with new task definition: $NEW_TASK_DEF_ARN"
 aws ecs update-service \
   --cluster flask-devops-cluster \
   --service flask-devops-service \
-  --force-new-deployment \
+  --task-definition "$NEW_TASK_DEF_ARN" \
   --region "$AWS_REGION"
 
 echo "Waiting for deployment to stabilise..."
