@@ -18,3 +18,4 @@ build/
 htmlcov/
 Thumbs.db
 docker-compose.override.yml
+docs/superpowers/
