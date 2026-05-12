@@ -52,7 +52,7 @@ def create_task():
 
 @tasks_bp.route('/tasks/<int:task_id>', methods=['PUT'])
 def update_task(task_id):
-    task = Task.query.get(task_id)
+    task = db.session.get(Task, task_id)
     if not task:
         return jsonify({'error': 'task not found'}), 404
     data = request.get_json()
@@ -73,7 +73,7 @@ def update_task(task_id):
 
 @tasks_bp.route('/tasks/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
-    task = Task.query.get(task_id)
+    task = db.session.get(Task, task_id)
     if not task:
         return jsonify({'error': 'task not found'}), 404
     db.session.delete(task)
