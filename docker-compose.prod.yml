@@ -12,7 +12,7 @@ services:
       - DB_NAME=${DB_NAME:-taskdb}
       - DB_USER=${DB_USER:-flaskuser}
       - DB_PASSWORD=${DB_PASSWORD:-flaskpassword}
-      - FLASK_ENV=production
+      - FLASK_DEBUG=0
     depends_on:
       mysql-db:
         condition: service_healthy
