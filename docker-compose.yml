@@ -40,6 +40,7 @@ services:
       timeout: 10s
       retries: 10
       interval: 5s
+      start_period: 30s
     networks:
       - app-network
     restart: unless-stopped
