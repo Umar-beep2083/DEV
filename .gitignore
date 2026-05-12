@@ -10,3 +10,11 @@ dist/
 mysql_data/
 .venv/
 venv/
+*.env.*
+build/
+*.db
+*.sqlite3
+.coverage
+htmlcov/
+Thumbs.db
+docker-compose.override.yml
