@@ -62,3 +62,24 @@ def test_update_and_delete_task(client):
     # Verify gone
     response = client.delete(f'/tasks/{task_id}')
     assert response.status_code == 404
+
+
+def test_get_single_task(client):
+    # Create a task first
+    response = client.post(
+        '/tasks',
+        data=json.dumps({'title': 'Single task test'}),
+        content_type='application/json',
+    )
+    task_id = json.loads(response.data)['id']
+
+    # Retrieve it by ID
+    response = client.get(f'/tasks/{task_id}')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['id'] == task_id
+    assert data['title'] == 'Single task test'
+
+    # Non-existent task
+    response = client.get('/tasks/99999')
+    assert response.status_code == 404
